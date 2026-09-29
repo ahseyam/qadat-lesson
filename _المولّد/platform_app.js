@@ -1,5 +1,10 @@
 const D = __DATA__, LOGO = "__LOGO__";
 const KEY = "ik_platform_v1", API = "ik_api_v1";
+/* ⛔ مفتاحُ المدرسة في المخزن المشترك: لو كتبت منصتان إلى المفتاح نفسِه
+   (`platform:db`) اندمجت بياناتُ مدرستين ولا تُفصلان بعدها. فيُشتقُّ من
+   بيانات المدرسة، ولو لُصق رابطُ خادمِ مدرسةٍ أخرى بقيت البياناتُ منفصلة.
+   (قادة الأمة — ٢٩ سبتمبر ٢٠٢٦) */
+const DBID = (typeof D !== "undefined" && D.dbid) ? D.dbid : "db";
 const $ = s => document.querySelector(s);
 const el = (t,c,x)=>{const e=document.createElement(t); if(c)e.className=c; if(x!=null)e.textContent=x; return e;};
 const arn = n => String(n).replace(/[0-9]/g, c => "٠١٢٣٤٥٦٧٨٩"[+c]);
@@ -41,7 +46,7 @@ function pushNow(){
   if(!body || body === lastSent){ pending = false; setSyn(""); return Promise.resolve(true); }
   setSyn("يُحفظ…");
   return fetch(api(), {method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body:
-      JSON.stringify({kind:"platform", id:"db", data: JSON.parse(body)})})
+      JSON.stringify({kind:"platform", id:DBID, data: JSON.parse(body)})})
     .then(r=>{
       if(r.status === 429 || r.status === 503) throw new Error("limit");
       return r.json();
@@ -80,14 +85,14 @@ addEventListener("visibilitychange", ()=>{ if(document.visibilityState === "hidd
 addEventListener("pagehide", ()=>{
   if(!api() || !pending) return;
   try{ navigator.sendBeacon(api(),
-       new Blob([JSON.stringify({kind:"platform", id:"db", data:DB})], {type:"text/plain"})); }catch(e){}
+       new Blob([JSON.stringify({kind:"platform", id:DBID, data:DB})], {type:"text/plain"})); }catch(e){}
 });
 addEventListener("beforeunload", (e)=>{
   if(api() && pending){ syncFlush(); }
 });
 function pull(){
   if(!api()) return Promise.resolve(false);
-  return fetch(api()+"?kind=platform&id=db").then(r=>r.json())
+  return fetch(api()+"?kind=platform&id=" + DBID + "").then(r=>r.json())
     .then(r=>{ if(r && r.ok && r.data){ DB = Object.assign(DB, r.data); lastSent = dbSnapshot();
       try{ localStorage.setItem(KEY, JSON.stringify(DB)); }catch(e){} return true; } return false; })
     .catch(()=>false);
@@ -3157,7 +3162,7 @@ function wipeAll(){
   try{ localStorage.setItem(KEY, JSON.stringify(DB)); }catch(e){}
   if(!api()){ alert("فُرّغت بيانات هذا الجهاز."); shell(); return; }
   fetch(api(), {method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"},
-      body: JSON.stringify({kind:"platform", id:"db", data:empty, __replace:true})})
+      body: JSON.stringify({kind:"platform", id:DBID, data:empty, __replace:true})})
     .then(r=>r.json())
     .then(r=>{
       if(r && r.ok && r.replaced){
