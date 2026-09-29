@@ -502,7 +502,7 @@ function adminLogin(){
       AUTH.derive(k, D.admin.s, D.admin.it).then(ph=>{
         /* ⚠️ المقارنةُ على الاثنين معاً، ورسالةُ الخطأ واحدةٌ لا تُفرّق بينهما */
         if(uh === D.admin.u && ph === D.admin.h){
-          ME = {role:"admin", name: D.owner || "مدير المنصة", emp:""};
+          ME = {role:"admin", name: D.adminname || D.owner || "مدير المنصة", emp:""};
           localStorage.setItem(KEY+"_me", JSON.stringify(ME));
           PH = 1; boot();
         } else {
@@ -683,7 +683,7 @@ function shell(){
   } else {
     /* معلمٌ أو زائرٌ بلا خادم: تنبيهٌ صامتٌ بلا أزرار — الربطُ ليس من شأنه */
     st0.appendChild(el("b",null,"غير متصلٍ بالمنظومة"));
-    st0.appendChild(el("span",null,"راجع إدارة التخطيط والاعتماد لتزويدك برابط الدخول الصحيح."));
+    st0.appendChild(el("span",null,"راجع " + (D.adminref || "مشرف المنصة") + " لتزويدك برابط الدخول الصحيح."));
   }
   side.appendChild(st0);
   const sf = el("div","sf");
@@ -702,7 +702,13 @@ function shell(){
   f1.appendChild(el("span",null, "من التخطيط إلى الدرجة: جدولٌ واحد · تحضيرٌ واحد · استمارةٌ واحدة · تقاريرُ تُصدر نفسها"));
   const f2 = el("div","sig");
   f2.appendChild(el("b",null, D.owner_role));
-  f2.appendChild(el("span",null, D.owner));
+  /* ⚠️ السطرُ الثاني رابطٌ إن وُجد عنوان — وإلا نصٌّ كما كان */
+  if(D.owner_url){
+    const a = el("a", null, D.owner);
+    a.href = D.owner_url; a.target = "_blank"; a.rel = "noopener";
+    a.style.cssText = "color:inherit;text-decoration:none";
+    f2.appendChild(a);
+  } else f2.appendChild(el("span",null, D.owner));
   if(D.build) f2.appendChild(el("i",null, D.build));
   fw.appendChild(f1); fw.appendChild(f2); ft.appendChild(fw);
   document.body.appendChild(ft);
@@ -754,7 +760,7 @@ function srv(){
   const v = prompt(
     "الصق رابط المخزن المشترك ليرى كلُّ أفراد المنظومة البيانات نفسها،\n" +
     "أو اتركه فارغاً للعمل على هذا الجهاز وحده:\n\n" +
-    "والرابطُ يُطلب من مدير التخطيط والاعتماد المدرسي — ولا يُنشأ من الصفحة.",
+    "والرابطُ يُطلب من " + (D.adminref || "مشرف المنصة") + " — ولا يُنشأ من الصفحة.",
     cur);
   if(v === null) return;
   const u = v.trim();
@@ -762,7 +768,7 @@ function srv(){
   if(!u){ shell(); return; }
   testSrv(u).then(r=>{
     if(!r.ok){ alert("⛔ الرابط لا يستجيب كما ينبغي:\n" + r.why +
-      "\n\nتأكّد أنه الرابطُ الذي سلَّمه مديرُ التخطيط والاعتماد المدرسي."); shell(); return; }
+      "\n\nتأكّد أنه الرابطُ الذي سلَّمه " + (D.adminref || "مشرف المنصة") + "."); shell(); return; }
     pull().then(()=>{ alert("✓ رُبط المخزن المشترك.\n" + r.note); shell(); });
   });
 }
@@ -3160,8 +3166,8 @@ function wipeAll(){
         save();
         alert("فُرّغت بيانات المنظومة على المخزن المشترك.\nوالنسخةُ الاحتياطيةُ على جهازك.");
       } else {
-        alert("⛔ لم يستجب الخادمُ للاستبدال.\n\nإن كان خادمُك قديماً فراجع مديرَ\n"
-              + "التخطيط والاعتماد المدرسي لترقيته ثم أعد المحاولة.");
+        alert("⛔ لم يستجب الخادمُ للاستبدال.\n\nإن كان خادمُك قديماً فراجع \n"
+              + (D.adminref || "مشرف المنصة") + " لترقيته ثم أعد المحاولة.");
       }
       shell();
     })
