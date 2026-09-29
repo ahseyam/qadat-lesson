@@ -1,0 +1,13 @@
+{
+ "school": "ابتدائية قادة الأمة الأهلية",
+ "company": "شركة مدارس قادة الأمة الأهلية",
+ "sector": "وطني",
+ "section": "بنين",
+ "stages": [
+  "المرحلة الأولية",
+  "المرحلة العليا"
+ ],
+ "logo": "هوية/شعار.jpg",
+ "letterhead": "هوية/كليشة.jpg",
+ "site": "https://ahseyam.github.io/qadat-lesson/"
+}
