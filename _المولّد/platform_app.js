@@ -1918,6 +1918,7 @@ function ph1(m){
   const gr = el("div","grid");
   const lab = (t)=>{ const w = el("label","f"); w.appendChild(el("span",null,t)); return w; };
   const ws = lab("نوع التعليم");
+  if(D.onesector) ws.style.display = "none";
   ws.appendChild(fld("sel", c.sector, v=>{
     setctx("sector", v);
     const l = D.complexes[v] || [];
@@ -1925,7 +1926,7 @@ function ph1(m){
     setctx("stages", []); shell();
   }, D.sectors));
   gr.appendChild(ws);
-  const wc = lab("المجمع التعليمي");
+  const wc = lab(D.lab_complex || "المجمع التعليمي");
   wc.appendChild(fld("sel", c.complex, v=>{ setctx("complex", v); setctx("stages", []); shell(); },
                      D.complexes[c.sector] || D.complexlist));
   gr.appendChild(wc);
@@ -2027,9 +2028,11 @@ function ph1(m){
   if(isDeputy()) tab("assign", "إسناد الزائرين");
   if(isRoving()) tab("visits", R === "peer" ? "زياراتي المسنَدة" : "خطة زياراتي");
   tab("school", R === "teacher" ? "من يزورنا"
-              : (isSchoolBound() ? "من يزور مدرستنا" : "جدول المجمع"));
+              : (isSchoolBound() ? "من يزور مدرستنا"
+                                 : (D.lab_schooltab || "جدول المجمع")));
   /* جدولُ دوران المشرفين لا يعني إلا من يدور فيه */
-  if(isSupervisor() || isAdmin()) tab("sup", "أين أزور — جدول المشرفين");
+  /* ⛔ بلا دورانٍ لا جدولَ دوران: كلُّ الخلايا مدرسةٌ واحدة. */
+  if(!D.norot && (isSupervisor() || isAdmin())) tab("sup", "أين أزور — جدول المشرفين");
   const pr = el("button","b ghost","طباعة"); pr.addEventListener("click", ()=>window.print());
   bar.appendChild(pr);
   if(isAdmin()){        /* ⛔ النسخةُ الاحتياطيةُ تُنزِّل بياناتِ المنظومة كلِّها */
