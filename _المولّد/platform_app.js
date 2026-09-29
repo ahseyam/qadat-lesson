@@ -5,6 +5,7 @@ const D = __DATA__, LOGO = "__LOGO__";
    وظهر في سجلِّ عملياتها حذفُ حصةٍ في مجمعٍ لا يتبعها. وأخطرُ منه أن مفتاحَ
    عنوان الخادم مشتركٌ أيضاً: فربطُ خادمٍ في إحداهما يُحوّل الأخرى إليه.
    ⚠️ والافتراضُ يبقى «ik» لمن لا dbid له — فلا تضيع بياناتُ من يستعملها اليوم. */
+const CXW = (typeof D !== "undefined" && D.lab_complex) ? "" : "مجمع ";
 const NS = (typeof D !== "undefined" && D.dbid) ? D.dbid : "ik";
 const KEY = NS + "_platform_v1", API = NS + "_api_v1";
 /* ⛔ مفتاحُ المدرسة في المخزن المشترك: لو كتبت منصتان إلى المفتاح نفسِه
@@ -560,6 +561,20 @@ function navItems(){
       return p ? {id:id, t:T4[id][0], s:T4[id][1]} : null;
     }).filter(Boolean));
   }
+  /* ═════════ شريطُ المستشار ═════════
+     ⛔ كان شريطُه شريطَ المعلم حرفياً: «الاستعداد والتحضير» و«تنفيذ الحصة»
+        و«رصد الحصة» — وهو لا يحضّر ولا ينفّذ ولا يرصد، والنصوصُ تخاطبه
+        بـ«اختر حصتك» و«املأ خانات التحضير». نبّه عليه المستشارُ ٢٩ سبتمبر
+        ٢٠٢٦: «ليس من الصحيح أن تظهر له هذه العناصر مثله كالمعلم تماماً».
+     فصار شريطُه أربعةَ بنودٍ هي عملُه فعلاً: يرى الحالَ، ويهيّئ الجدول،
+     ويقرأ التقارير، ويملك أدواتِ المنظومة. ويفتح أي حصةٍ للمراجعة من
+     اللوحة أو التقارير — مراجعةً لا تنفيذاً. */
+  if(isAdmin()) return [
+    {id: 7, t: "لوحةُ المنظومة", s: "حالُ التفعيل في سطرٍ واحد — وما يحتاج تدخّلك"},
+    {id: 1, t: "الجدول والإسناد", s: "تهيئةُ الحصص وإسنادُ الزائرين ومتابعتُهما"},
+    {id: 5, t: "التقارير", s: "سبعةُ تقاريرَ تُطبع وتُصدَّر"},
+    {id: 8, t: "أدواتُ المنصة", s: "المخزن · الدعوة · السجلّ · السلّة · النسخة · التفريغ"},
+  ];
   items.push(mine5);
   return items;
 }
@@ -729,7 +744,9 @@ function shell(){
   fw.appendChild(f1); fw.appendChild(f2); ft.appendChild(fw);
   document.body.appendChild(ft);
 
-  if(PH !== 5){
+  /* ⚠️ شاشتا المستشار (٧ لوحة · ٨ أدوات) ليستا في D.phases — ولهما عنوانُهما
+     في الشريط، فلا صندوقَ شرحٍ لهما. وبدون هذا الحارس يسقط الرسمُ كلُّه. */
+  if(PH !== 5 && D.phases.some(x=>x.id === PH)){
     const p = D.phases.find(x=>x.id===PH);
     const why = el("div","why");
     /* ⚠️ والعنوانُ يوافق الشريطَ: الموضعُ لا المعرّف */
@@ -770,7 +787,160 @@ function shell(){
     why.appendChild(dv);
     mw.appendChild(why);
   }
-  ({1:ph1, 2:ph2, 3:ph3, 4:ph4, 5:ph5, 6:ph6})[PH](mw);
+  ({1:ph1, 2:ph2, 3:ph3, 4:ph4, 5:ph5, 6:ph6, 7:phBoard, 8:phTools})[PH](mw);
+}
+
+/* ⚠️ صياغةُ الوقت والصفة كانت داخل logView وحدَها، فلمّا احتاجتها اللوحةُ
+   كان البديلُ نسخةً ثانيةً تفترق عنها. فاستُخرجتا دالّتين يقرأ منهما الاثنان. */
+const ROLE_SHORT = {teacher:"معلم", peer:"زائر", evaluator:"مقيّم",
+                    principal:"مدير", deputy:"وكيل", supervisor:"مشرف",
+                    supervision:"مدير إشراف", admin:"مشرف المنصة"};
+function roleName(k){ return ROLE_SHORT[k] || "—"; }
+function agoTxt(t){
+  const d = new Date(t || Date.now());
+  const mins = Math.floor((Date.now() - d.getTime()) / 60000);
+  if(mins < 1) return "الآن";
+  if(mins < 60) return "قبل " + arn(mins) + " د";
+  if(mins < 1440) return "قبل " + arn(Math.floor(mins / 60)) + " س";
+  return arn(d.getDate()) + "/" + arn(d.getMonth() + 1) + " " +
+         arn(String(d.getHours()).padStart(2, "0")) + ":" +
+         arn(String(d.getMinutes()).padStart(2, "0"));
+}
+
+/* ═════════ لوحةُ المنظومة — للمستشار وحده ═════════
+   ⛔ عملُ المستشار أن يعرف **أين تقف المنظومة** وما يحتاج تدخّله، لا أن
+      يحضّر حصةً. فهذه أولُ شاشةٍ يفتحها: الحالُ في سطر، ثم ما تعطّل. */
+function phBoard(m){
+  const sch = DB.sched || [];
+  const named = sch.filter(L=>(L.teacher||"").trim());
+  let issued = 0, obsd = 0, appr = 0, peerd = 0, noPeer = 0;
+  named.forEach(L=>{
+    const g = prog(L);
+    if(g.issued) issued++;
+    if(g.obs > 0) obsd++;
+    if(g.pr > 0) peerd++;
+    if(L.approved) appr++;
+    if(!(L.peer1e || L.peer1 || L.peer2e || L.peer2)) noPeer++;
+  });
+  const linked = !!api();
+
+  /* ── الحالُ في سطر ── */
+  const c1 = el("div","card"), h1 = el("h3");
+  h1.appendChild(el("span",null,"حالُ المنظومة"));
+  h1.appendChild(el("small",null, D.school + (D.stagelabel ? " · " + D.stagelabel : "")));
+  c1.appendChild(h1);
+  const p1 = el("div","pad");
+  kpis(p1, [[arn(named.length), "حصةً مجدولةً باسم معلم"],
+            [arn(issued), "صدر تحضيرُها"],
+            [arn(obsd), "بدأ رصدُها"],
+            [arn(appr), "اعتُمدت نتيجتُها"]]);
+  c1.appendChild(p1); m.appendChild(c1);
+
+  /* ── ما يحتاج تدخّلك ── */
+  const c2 = el("div","card"), h2 = el("h3");
+  h2.appendChild(el("span",null,"ما يحتاج تدخّلك"));
+  h2.appendChild(el("small",null,"مرتَّبٌ بالأهمّ — وكلُّ بندٍ يفتح موضعَه"));
+  c2.appendChild(h2);
+  const p2 = el("div","pad");
+  const items = [];
+  const add = (bad, txt, act, go) => items.push({bad, txt, act, go});
+  add(!linked, linked ? "المخزن المشترك مربوط — ويرى الجميعُ البياناتِ نفسَها"
+                      : "المخزن المشترك غيرُ مربوط — ما يُكتب يبقى على جهاز صاحبه",
+      linked ? "" : "اربط الخادم", ()=>srv());
+  add(!named.length, named.length ? arn(named.length) + " حصةً مجدولةً"
+                                  : "لا حصةَ مجدولةٌ بعد — والجدولُ أولُ الطريق",
+      "افتح الجدول", ()=>{ PH = 1; setctx("tab","fill"); shell(); });
+  add(noPeer > 0, noPeer ? arn(noPeer) + " حصةً بلا معلمٍ زائرٍ مُسنَد"
+                         : "كلُّ حصةٍ مجدولةٍ لها زائرُها",
+      noPeer ? "افتح الإسناد" : "", ()=>{ PH = 1; setctx("tab","assign"); shell(); });
+  add(named.length > issued, named.length - issued > 0
+        ? arn(named.length - issued) + " حصةً لم يصدر تحضيرُها بعد"
+        : "كلُّ الحصص صدر تحضيرُها",
+      "افتح تقرير التفعيل", ()=>{ PH = 5; RPT = "active"; shell(); });
+  add(obsd > appr, obsd - appr > 0
+        ? arn(obsd - appr) + " حصةً رُصدت ولم تُعتمد نتيجتُها"
+        : "لا حصةَ تنتظر الاعتماد",
+      "افتح تقرير المدرسة", ()=>{ PH = 5; RPT = "school"; shell(); });
+
+  items.sort((a,b)=>(b.bad?1:0) - (a.bad?1:0));
+  const t = el("table"), tr = el("tr");
+  ["", "الحال", ""].forEach(x=>tr.appendChild(el("th",null,x)));
+  t.appendChild(tr);
+  items.forEach(it=>{
+    const r = el("tr");
+    const st = el("td");
+    st.appendChild(el("span","tag " + (it.bad ? "no" : "ok"), it.bad ? "يحتاج" : "تمّ"));
+    r.appendChild(st);
+    r.appendChild(el("td",null,it.txt)).style.textAlign = "start";
+    const ac = el("td");
+    if(it.act){
+      const b = el("button","b " + (it.bad ? "" : "ghost"), it.act);
+      b.style.cssText = "padding:4px 12px;font-size:14px";
+      b.addEventListener("click", it.go); ac.appendChild(b);
+    }
+    r.appendChild(ac); t.appendChild(r);
+  });
+  p2.appendChild(t); c2.appendChild(p2); m.appendChild(c2);
+
+  /* ── آخرُ ما جرى ── */
+  const lg = logList().slice(0, 6);
+  const c3 = el("div","card"), h3 = el("h3");
+  h3.appendChild(el("span",null,"آخرُ ما جرى"));
+  h3.appendChild(el("small",null,"ستُّ عملياتٍ — والسجلُّ كاملاً في أدوات المنصة"));
+  c3.appendChild(h3);
+  const p3 = el("div","pad");
+  if(!lg.length) p3.appendChild(el("div","empty","لا عمليات بعد."));
+  else{
+    const t3 = el("table"), r3 = el("tr");
+    ["متى","من","الصفة","العملية"].forEach(x=>r3.appendChild(el("th",null,x)));
+    t3.appendChild(r3);
+    lg.forEach(x=>{
+      const r = el("tr");
+      [agoTxt(x.t), x.by || "—", roleName(x.r), x.a + (x.w ? " · " + x.w : "")]
+        .forEach((v,i)=>{ const td = el("td",null,v); if(i) td.style.textAlign="center"; r.appendChild(td); });
+      t3.appendChild(r);
+    });
+    p3.appendChild(t3);
+  }
+  c3.appendChild(p3); m.appendChild(c3);
+}
+
+/* ═════════ أدواتُ المنصة — للمستشار وحده ═════════ */
+function phTools(m){
+  const mk = (title, sub, rows) => {
+    const c = el("div","card"), h = el("h3");
+    h.appendChild(el("span",null,title));
+    if(sub) h.appendChild(el("small",null,sub));
+    c.appendChild(h);
+    const p = el("div","pad");
+    rows.forEach(([lab, desc, btn, fn, warn])=>{
+      const w = el("div","vday");
+      w.appendChild(el("b",null,lab));
+      w.appendChild(el("i",null,desc));
+      const b = el("button","b " + (warn ? "warn" : "ghost") + " sm", btn);
+      b.addEventListener("click", fn);
+      b.style.marginInlineStart = "auto";
+      w.appendChild(b);
+      p.appendChild(w);
+    });
+    c.appendChild(p); m.appendChild(c);
+  };
+  mk("المخزن المشترك", api() ? "مربوطٌ — ويرى الجميعُ البياناتِ نفسَها" : "غيرُ مربوط", [
+    ["الخادم", api() || "لم يُربط بعد", api() ? "تغيير" : "اربط الخادم", ()=>srv()],
+    ["رابط الدعوة", "يُرسَل للمدرسة فيُربط جهازُ من يفتحه تلقائياً", "انسخ الرابط", ()=>invite()],
+    ["تحديثٌ الآن", "سحبُ ما كتبه غيرُك على أجهزتهم", "تحديث", ()=>pull().then(()=>shell())],
+  ]);
+  mk("السجلّ والاسترداد", "ما جرى وما حُذف", [
+    ["سجلّ العمليات", "من فعل ماذا ومتى — آخر ٦٠٠ عملية", "افتح السجلّ",
+     ()=>{ PH = 1; setctx("tab","log"); shell(); }],
+    ["سلّة المحذوفات", "يُحفظ المحذوفُ ثلاثين يوماً ويُستردُّ بنقرة", "افتح السلّة",
+     ()=>{ PH = 1; setctx("tab","trash"); shell(); }],
+  ]);
+  mk("النسخ والتفريغ", "⚠️ الأخيرُ لا يُستردّ", [
+    ["نسخةٌ احتياطية", "تُنزَّل بياناتُ المنظومة كلُّها ملفاً على جهازك", "نزّل النسخة", ()=>backup()],
+    ["تفريغُ البيانات", "محوٌ كاملٌ على كل الأجهزة — بعد نسخةٍ وتأكيدٍ مكتوب",
+     "تفريغ", ()=>wipeAll(), true],
+  ]);
 }
 
 function srv(){
@@ -1993,7 +2163,7 @@ function ph1(m){
   if(bound){
     sw.appendChild(el("b",null,"مدرستك:"));
     const tag = el("div","ticks");
-    tag.appendChild(el("span","tag ok", ME.school + " · مجمع " + ME.complex));
+    tag.appendChild(el("span","tag ok", D.lab_complex ? ME.complex : (ME.school + " · مجمع " + ME.complex)));
     sw.appendChild(tag);
     sw.appendChild(el("small",null,
       "أعمدةُ مدرستك وحدها مفتوحةٌ لك — ولتغييرها اخرج وادخل بمدرسةٍ أخرى."));
@@ -2158,7 +2328,7 @@ function todayHint(){
   const dn = todayName();
   if(!wk) return "اليومُ خارج أسابيع التقويم";
   const cx = supComplexOn(wk, dn);
-  return cx ? ("اليوم: " + dn + " · " + wk + " · مجمع " + cx)
+  return cx ? ("اليوم: " + dn + " · " + wk + " · " + CXW + cx)
             : (dn + " ليس يومَ زيارةٍ لفريقك — يُنتقل إلى أقرب يوم");
 }
 
@@ -2167,7 +2337,7 @@ function grid(m, c, T){
   const CURW = currentWeek();
   const g = el("div","card");
   const gh = el("h3");
-  gh.appendChild(el("span",null,"مجمع " + c.complex + " · " + c.sector));
+  gh.appendChild(el("span",null, CXW + c.complex + (D.onesector ? "" : " · " + c.sector)));
   gh.appendChild(el("small",null, arn(rows.length) + " صفاً · " + arn(bands.length) + " عمود حصة"));
   const CURW2 = CURW;
   g.appendChild(gh);
@@ -2267,9 +2437,12 @@ function grid(m, c, T){
   });
   wrap.appendChild(t); g.appendChild(wrap);
   const n = el("div","pad note");
-  n.appendChild(el("div",null,
-    "وقتُ البدء يُكتب في الخانة — فقد تختلف مواعيدُ الحصص بين مدارس المجمع الواحد، "
-    + "والمكتوبُ في رأس العمود هو الغالبُ في الملف تذكيراً لا إلزاماً."));
+  /* ⚠️ التذكيرُ يصف بنيةَ المدرسة التي يُقرأ فيها — لا بنيةَ غيرها */
+  n.appendChild(el("div", null, D.lab_complex
+    ? "وقتُ البدء يُكتب في الخانة — فقد تختلف مواعيدُ الحصص بين المرحلة الأولية "
+      + "والعليا، والمكتوبُ في رأس العمود هو الغالبُ تذكيراً لا إلزاماً."
+    : "وقتُ البدء يُكتب في الخانة — فقد تختلف مواعيدُ الحصص بين مدارس المجمع الواحد، "
+      + "والمكتوبُ في رأس العمود هو الغالبُ في الملف تذكيراً لا إلزاماً."));
   g.appendChild(n);
   m.appendChild(g);
 }
@@ -2363,12 +2536,12 @@ function cellEditor(c, band, r){
 /* الوجه الأول من الورقة الأولى: من يزور هذا المجمع */
 function rotSchool(m, c){
   const card = el("div","card"), h = el("h3");
-  h.appendChild(el("span",null,"جدول زيارات المجمعات"));
+  h.appendChild(el("span",null, D.lab_complex ? "من يزور مدرستنا" : "جدول زيارات المجمعات"));
   h.appendChild(el("small",null,"أيُّ فريقِ تخصّصٍ يزور المجمع في كل يومٍ من كل أسبوع"));
   card.appendChild(h);
   const wrap = el("div","gwrap");
   D.complexlist.forEach(cx=>{
-    const ttl = el("div","wk", "مجمع " + cx + (cx === c.complex ? "  ← مجمعك" : ""));
+    const ttl = el("div","wk", CXW + cx + (cx === c.complex && !D.lab_complex ? "  ← مجمعك" : ""));
     if(cx === c.complex) ttl.className = "wk on";
     wrap.appendChild(ttl);
     const t = el("table","mx2"), hr = el("tr");
@@ -2440,13 +2613,14 @@ function myList(m, c){
   let here = DB.sched.filter(x=>x.gk && x.gk.indexOf(c.sector + "|" + c.complex + "|") === 0);
   if(ME.role === "teacher") here = here.filter(isMine);
   const s2 = el("div","card"), sh = el("h3");
-  sh.appendChild(el("span",null, ME.role === "teacher" ? "حصصك المسجَّلة" : "الحصص المسجَّلة في المجمع"));
+  sh.appendChild(el("span",null, ME.role === "teacher" ? "حصصك المسجَّلة"
+    : ("الحصص المسجَّلة في " + (D.lab_complex || "المجمع"))));
   sh.appendChild(el("small",null, arn(here.length) + " حصة")); s2.appendChild(sh);
   const sp = el("div","pad");
   if(!here.length){
     sp.appendChild(el("div","empty", ME.role === "teacher"
       ? "لا حصةَ مسجَّلةٌ بعد — والتسجيل بزرّ «سجّلني هنا» في خانة الحصة التي ستُنفَّذ فيها."
-      : "لم تُسجَّل حصصٌ بعد في هذا المجمع."));
+      : ("لم تُسجَّل حصصٌ بعد في " + (D.lab_complex ? "هذه المدرسة" : "هذا المجمع") + ".")));
   } else {
     const tb = el("table"), tr = el("tr");
     const heads = ["المدرسة والحصة","الأسبوع واليوم", D.lab_teacher_short, "الاستراتيجية والاتجاه", D.lab_spec];
@@ -2762,7 +2936,7 @@ function visitPlan(m, c){
     if(!cx) return;
     const dt = cal ? (cal.days[day]||{}) : {};
     const dh = el("div","vday");
-    dh.appendChild(el("b",null, day + " — مجمع " + cx));
+    dh.appendChild(el("b",null, day + " — " + CXW + cx));
     dh.appendChild(el("i",null, [dt.gt, dt.ht].filter(Boolean).join(" · ")));
     body.appendChild(dh);
     const bands = bandsOf(cx);
@@ -3013,18 +3187,11 @@ function logView(m, c){
     const t = el("table"), tr = el("tr");
     ["متى","من","الصفة","العملية","التفصيل"].forEach(x=>tr.appendChild(el("th",null,x)));
     t.appendChild(tr);
-    const RO = {teacher:"معلم", peer:"زائر", evaluator:"مقيّم"};
     list.slice(0, 300).forEach(e=>{
       const r = el("tr");
-      const d = new Date(e.t || Date.now());
-      const mins = Math.floor((Date.now() - d.getTime())/60000);
-      const when = mins < 1 ? "الآن" : mins < 60 ? "قبل " + arn(mins) + " د"
-                 : mins < 1440 ? "قبل " + arn(Math.floor(mins/60)) + " س"
-                 : arn(d.getDate()) + "/" + arn(d.getMonth()+1) + " " +
-                   arn(String(d.getHours()).padStart(2,"0")) + ":" + arn(String(d.getMinutes()).padStart(2,"0"));
-      r.appendChild(el("td",null, when));
+      r.appendChild(el("td",null, agoTxt(e.t)));
       r.appendChild(el("td",null, e.by || "—"));
-      r.appendChild(el("td",null, RO[e.r] || "—"));
+      r.appendChild(el("td",null, roleName(e.r)));
       const ac = el("td");
       const cls = e.a === "حذف" ? "no" : (e.a === "استرداد" || e.a === "إصدار التحضير" ? "ok" : "mid");
       ac.appendChild(el("span","tag " + cls, e.a || "—"));
