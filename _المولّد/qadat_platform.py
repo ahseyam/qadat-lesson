@@ -339,7 +339,10 @@ a{color:var(--teal2)}
 .top{background:linear-gradient(105deg,var(--navy2),var(--navy) 45%,var(--teal));color:#fff;padding:14px 0}
 .top .row{display:flex;align-items:center;gap:16px;flex-wrap:wrap;justify-content:space-between;
  max-width:1760px;margin:0 auto;width:100%}
-.top img{height:42px;border-radius:5px;background:#fff;padding:3px 7px}
+/* ⛔ شعارُ المدرسة يُقرأ لا يُلمَح: رُفع من ٤٢ إلى ٦٠ بكسلاً وقُصَّ هامشُه
+   الأبيضُ في المصدر، فصار المرئيُّ منه أكبرَ مرّتين. (٢٩ سبتمبر ٢٠٢٦) */
+.top img{height:60px;border-radius:7px;background:#fff;padding:4px 9px}
+@media(max-width:760px){.top img{height:46px;padding:3px 7px}}
 .top h1{font-size:23px;font-weight:700}
 .pnav{display:flex;align-items:center;gap:8px}
 .pnav button{background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.28);color:#fff;
