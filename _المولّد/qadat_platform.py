@@ -306,10 +306,31 @@ DATA = {
                                "ما الأثر الذي أتوقّعه على طلابي؟"]],
 }
 
+# ═════════ سِمةُ الألوان — من كليشتهم بالبكسل لا بالتخمين ═════════
+# ⛔ استُخرج الفيروزيُّ #279B9A والكهرمانيُّ #B07A10 من «هوية/كليشة.jpg»
+#    بعدّ البكسل، ومنهما اشتُقَّت اللوحةُ كلُّها. (٢٩ سبتمبر ٢٠٢٦)
+# ⚠️ وطرفُ تدرّج الهيدر عُمِّق حتى بلغ تباينُه مع الأبيض ٤٫٧١:١ —
+#    ولونُ الكليشة نفسُه يعطي ٣٫٣٦:١ ولا يكفي لنصٍّ أبيض.
+THEME = {
+    "navy": "#18605F",
+    "navy2": "#104140",
+    "teal": "#20807F",
+    "teal2": "#1B6C6B",
+    "tealbg": "#E9F5F4",
+    "head": "#EFF8F7",
+    "line": "#C6E5E4",
+    "bg": "#F5FAFA",
+    "gold": "#B07A10",
+    "ans": "#18605F",
+    "ftxt": "#CFD9D8",
+    "fsub": "#A4B6B6",
+}
+THEME_CSS = "".join("--%s:%s;" % (k, v) for k, v in THEME.items())
+
 CSS = """
-:root{--navy:#2F5384;--navy2:#1d3760;--teal:#2F7F95;--teal2:#1d5d70;--tealbg:#E4F1F4;
- --ink:#16202e;--grey:#6b7a8d;--line:#d7dfe9;--head:#EDF2F8;--gold:#B8862B;--bg:#f2f5f9;
- --ok:#1d6b35;--okbg:#e8f6ec;--bad:#a52018;--badbg:#fdeceb;--ans:#1F4E79}
+:root{__THEME__
+ --ink:#16202e;--grey:#6b7a8d;
+ --ok:#1d6b35;--okbg:#e8f6ec;--bad:#a52018;--badbg:#fdeceb}
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--bg);color:var(--ink);font-family:JZ,SK,"Geeza Pro",Tahoma,sans-serif;font-size:17px;line-height:1.7}
 a{color:var(--teal2)}
@@ -638,10 +659,10 @@ td.cell:focus-within{box-shadow:inset 0 0 0 2px var(--gold)}
 .runrow b{color:var(--navy);font-size:14.5px}
 .runrow div{font-size:15.5px;white-space:pre-wrap}
 @media(max-width:700px){.runrow{grid-template-columns:1fr}}
-footer{background:var(--navy2);color:#cfdbe8;margin-top:26px;padding:16px 0}
+footer{background:var(--navy2);color:var(--ftxt);margin-top:26px;padding:16px 0}
 .frow{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
 footer b{display:block;font-size:15.5px;color:#fff;font-weight:700}
-footer span{display:block;font-family:JZL,SK;font-size:13.5px;color:#a9c0d8;margin-top:3px;line-height:1.6}
+footer span{display:block;font-family:JZL,SK;font-size:13.5px;color:var(--fsub);margin-top:3px;line-height:1.6}
 footer .sig{text-align:start;border-inline-start:3px solid var(--teal);padding-inline-start:13px}
 footer .sig b{font-size:14px;color:#cfe4ea;font-weight:400;font-family:JZL,SK}
 footer .sig span{font-size:16px;color:#fff;font-weight:700;font-family:JZ,SK;margin-top:1px}
@@ -704,6 +725,8 @@ DATA["owner_url"] = "https://jadarah.com"
 # ⛔ مسمّياتُ الواجهة تتبع بنيتَهم: لا «مجمع» ولا «قطاع» في مدرسةٍ واحدة.
 DATA["lab_complex"] = "المدرسة"
 DATA["lab_schooltab"] = "جدول المدرسة"
+DATA["lab_gridsub"] = ("صفوفُها: الأسبوعُ واليومُ ونطاقُ الإشراف · "
+                       "وأعمدتُها: حصصُ المدرسة الستُّ بأوقات بدئها")
 DATA["onesector"] = True
 DATA["dbid"] = "qadat-primary-boys"
 DATA["adminref"] = "مشرف المنصة"
@@ -746,7 +769,7 @@ if os.path.exists(lp):
 
 out = sys.argv[1] if len(sys.argv) > 1 else "platform.html"
 page = (HTML.replace("__SCHOOL__", "منصة الحصة الموحَّدة — " + Q.SCHOOL)
-            .replace("__FONTS__", FONTCSS).replace("__CSS__", CSS)
+            .replace("__FONTS__", FONTCSS).replace("__CSS__", CSS.replace("__THEME__", THEME_CSS))
             .replace("__JS__", JS.replace("__DATA__", json.dumps(DATA, ensure_ascii=False))
                                  .replace("__LOGO__", logo)))
 with open(out, "w", encoding="utf-8") as f:

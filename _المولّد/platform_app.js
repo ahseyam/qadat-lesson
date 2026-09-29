@@ -631,7 +631,11 @@ function shell(){
   }
   items.forEach(p=>{
     const b = el("button", p.id===PH ? "on" : "");
-    b.appendChild(el("i",null,arn(p.id)));
+    /* ⛔ العددُ موضعُ المرحلة في مسار هذا الدور لا معرّفُها الداخلي: كان
+       الشريطُ يقرأ ١ · ٢ · ٦ · ٣ · ٤ · ٥ لأن «تنفيذ الحصة» أُضيفت متأخرةً
+       بمعرّف ٦ ووضعُها الثالث. والمعرّفُ يبقى كما هو لأن التوجيهَ عليه.
+       (٢٩ سبتمبر ٢٠٢٦) */
+    b.appendChild(el("i",null,arn(items.indexOf(p) + 1)));
     const tx = el("span");
     tx.appendChild(el("b",null,p.t));
     tx.appendChild(el("small",null,p.s));
@@ -728,7 +732,9 @@ function shell(){
   if(PH !== 5){
     const p = D.phases.find(x=>x.id===PH);
     const why = el("div","why");
-    why.appendChild(el("h2",null,"المرحلة " + arn(p.id) + " · " + p.t));
+    /* ⚠️ والعنوانُ يوافق الشريطَ: الموضعُ لا المعرّف */
+    const _pos = navItems().findIndex(x=>x.id === PH);
+    why.appendChild(el("h2",null,"المرحلة " + arn(_pos < 0 ? p.id : _pos + 1) + " · " + p.t));
     why.appendChild(el("p",null,p.why));
     const ol = el("ol"); p.steps.forEach(x=>ol.appendChild(el("li",null,x))); why.appendChild(ol);
     const dv = el("div","docs");
@@ -1834,8 +1840,8 @@ function issue(L,P){
 /* ═════════ المرحلة ١: جدول الحصص الموحَّدة للتقويم الخارجي ═════════
    ⛔ لا يُذكر اسمُ البرنامج السابق في أي نصٍّ يراه المستخدم: هو برنامجٌ آخر،
       وهذه منصةُ الحصص الموحَّدة وحدها. (وبنيةُ الجدول مستمَدّةٌ من ملفٍ سابق.)
-   · ورقةُ كل مجمع: صفوفُها (الأسبوع × اليوم × تخصص المعلم الزائر)،
-     وأعمدتُها مدارسُ المجمع، وتحت كل مدرسةٍ حصصُها، وتحت كل حصةٍ خمسةُ حقول.
+   · صفوفُ الجدول: (الأسبوع × اليوم × تخصص الزائر)، وأعمدتُه الحصصُ بأوقاتها،
+     وتحت كل حصةٍ خمسةُ حقول. وبنيةُ الأعمدة تأتي من D.bands لا من افتراض.
    · والدورانُ مقروءٌ من الورقة الأولى لا محسوباً — وله وجهان:
      «من يزورنا» للمدرسة، و«أين أزور» للمشرف.
    · ولا أربعاء، والأسبوعُ الرابعُ ثلاثةُ أيامٍ لا أربعة — كما في الأصل. */
@@ -1919,7 +1925,9 @@ function ph1(m){
   const top = el("div","card");
   const th = el("h3");
   th.appendChild(el("span",null,"جدول الحصص الموحَّدة للتقويم الخارجي"));
-  th.appendChild(el("small",null,"البنيةُ نفسها: الأسبوع واليوم وتخصص الزائر صفوفاً، ومدارسُ المجمع وحصصُها أعمدة"));
+    /* ⚠️ وصفُ البنية يُقرأ من البيانات: مدرسةٌ واحدةٌ لا تشبه مجمعاً بمدارس. */
+  th.appendChild(el("small",null, D.lab_gridsub ||
+    "البنيةُ نفسها: الأسبوع واليوم وتخصص الزائر صفوفاً، ومدارسُ المجمع وحصصُها أعمدة"));
   top.appendChild(th);
   const tp = el("div","pad");
   const gr = el("div","grid");
@@ -2054,7 +2062,10 @@ function ph1(m){
     const q = fld("txt", c.q||"", v=>{ setctx("q", v); redrawGrid(); }, null, "ابحث باسم معلمٍ أو فصل");
     q.setAttribute("aria-label", "بحثٌ في الجدول");
     fb.appendChild(q);
-    const wk = fld("sel", c.onlyw||"", v=>{ setctx("onlyw", v); shell(); },
+    /* ⛔ القيمةُ الفارغةُ ليست خياراً في القائمة، فيعرض المتصفحُ «— اختر —»
+       ويظنُّ القارئُ أن عليه اختياراً. والفارغُ معناه «كل الأسابيع» فيُسمَّ به. */
+    const wk = fld("sel", c.onlyw || "كل الأسابيع",
+                   v=>{ setctx("onlyw", v === "كل الأسابيع" ? "" : v); shell(); },
                    ["كل الأسابيع"].concat(D.weeks));
     wk.setAttribute("aria-label", "ترشيحٌ بالأسبوع"); fb.appendChild(wk);
     const only = el("label","tk");
