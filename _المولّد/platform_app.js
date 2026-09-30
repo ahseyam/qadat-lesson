@@ -230,9 +230,9 @@ function isMyVisit(L){
   return false;
 }
 function myLessons(){
-  const n = (ME.name||"").trim();
   if(isEval()) return DB.sched;
-  if(ME.role === "teacher")   return DB.sched.filter(L => (L.teacher||"").trim() === n);
+  /* ⚠️ ومصدرُ «حصصي» واحدٌ مع مصدر «أملك تعديلَها»: كانا اثنين فافترقا. */
+  if(ME.role === "teacher") return DB.sched.filter(isMine);
   return DB.sched.filter(isMyVisit);
 }
 function prog(L){                                   /* تقدّم الحصة */
@@ -928,6 +928,12 @@ function phBoard(m){
   add(noPeer > 0, noPeer ? arn(noPeer) + " حصةً بلا معلمٍ زائرٍ مُسنَد"
                          : "كلُّ حصةٍ مجدولةٍ لها زائرُها",
       noPeer ? "افتح الإسناد" : "", ()=>{ PH = 1; setctx("tab","assign"); shell(); });
+  /* ⛔ قبل التحضير: هل أدخل الكشفُ كلُّه؟ فالجدولُ الناقصُ لا يُصلحه تحضير. */
+  const PE = pendingEntry();
+  if(PE) add(PE.left.length > 0, PE.left.length
+        ? arn(PE.left.length) + " من " + arn(PE.total) + " بلا حصةٍ مسجَّلةٍ بعد"
+        : "كشفُ المعلمين تامُّ الإدخال (" + arn(PE.total) + ")",
+      PE.left.length ? "افتح الكشف" : "", ()=>{ PH = 5; RPT = "pending"; shell(); });
   add(named.length > issued, named.length - issued > 0
         ? arn(named.length - issued) + " حصةً لم يصدر تحضيرُها بعد"
         : "كلُّ الحصص صدر تحضيرُها",
@@ -1459,6 +1465,55 @@ function sendWA(L, rows){
 
 /* ═════════ المرحلة ٥: التقارير ═════════ */
 let RPT = "school";
+/* ═════════ كشفُ المعلمين مقابلَ الجدول ═════════
+   ⛔ «تقريرُ التفعيل» يبني قائمتَه من الموجود في البيانات، فمن لم يُدخل شيئاً
+      لا يظهر فيه — ولا يُحصى الغائبُ من حاضرين. فهذا يقيس الجدولَ على الكشف.
+   ⚠️ ويُحتسب المعلمُ «مُدخِلاً» بالرقم إن حملته الخانة، وبالاسم بديلاً — وإلا
+      حُسب الحاضرُ غائباً فلوحق بلا سبب. */
+function pendingEntry(){
+  const R = D.roster || {}, keys = Object.keys(R);
+  if(!keys.length) return null;                 /* لا كشفَ فلا قياس */
+  const byNo = new Set(), byNm = new Set();
+  (DB.sched || []).forEach(L=>{
+    if(!(L.teacher||"").trim()) return;
+    const e = (L.teacherNo||"").trim();
+    if(e) byNo.add(e);
+    byNm.add((L.teacher||"").trim());
+  });
+  const done = [], left = [];
+  keys.forEach(k=>{
+    const r = R[k] || {};
+    const sp = (D.specmap || {})[r.s] || r.s || "—";
+    (byNo.has(k) || byNm.has((r.n||"").trim()) ? done : left).push([r.n || "—", k, sp]);
+  });
+  const coll = new Intl.Collator("ar");
+  left.sort((a,b)=>coll.compare(a[0], b[0]));
+  return {total: keys.length, done: done.length, left: left};
+}
+
+function rPending(p){
+  const s = pendingEntry();
+  if(!s){
+    p.appendChild(el("div","msg bad",
+      "لا كشفَ معلمين في هذه المنصة، فلا سبيلَ إلى معرفة الناقص — "
+      + "وقياسُ الجدول على الكشف لا على نفسه."));
+    return;
+  }
+  kpis(p, [[arn(s.total), "في كشف المعلمين"],
+           [arn(s.done), "بحصةٍ في الجدول"],
+           [arn(s.left.length), "بلا حصةٍ بعد"],
+           [arn(Math.round(s.done / s.total * 100)) + "٪", "نسبةُ الإدخال"]]);
+  if(!s.left.length){
+    p.appendChild(el("div","msg ok",
+      "كشفُ المعلمين تامُّ الإدخال: لكلِّ اسمٍ حصةٌ في الجدول."));
+    return;
+  }
+  p.appendChild(el("div","msg bad",
+    "هذه أسماءٌ بلا حصةٍ في الجدول. والجدولُ لا يكتمل قبلها، "
+    + "والإسنادُ لا يكون على خانةٍ بلا معلم."));
+  tbl(p, ["المعلم", "الرقم الوظيفي", "المادة"], s.left);
+}
+
 const REPORTS = [
   ["school",  "تقرير المدارس",        "لكل مدرسة: كم حصة، وكم حُضِّر ورُصد، ومتوسط النسبة"],
   ["teacher", "تقرير المعلمين",       "لكل معلم: عددُ الحصص والنسبةُ والمستوى وإجراءُ الجسر"],
@@ -1467,6 +1522,8 @@ const REPORTS = [
   ["strat",   "تقرير الإستراتيجيات",  "أيُّ إستراتيجيةٍ تُطبَّق أكثر، وبأي درجة"],
   ["appr",    "تقرير الاتجاهات",      "توزيع الاتجاهات التدريسية المعلنة"],
   ["active",  "تقرير التفعيل",        "مَن فعّل ومَن لم يفعّل: معلمون ومقيّمون وزائرون"],
+  /* ⛔ التفعيلُ يعدّ الحاضرين، وهذا يعدّ الغائبين — ولا يُعرف الغائبُ إلا بالكشف */
+  ["pending", "الإدخالُ الناقص",      "كشفُ المعلمين مقابلَ الجدول: من بلا حصةٍ مسجَّلةٍ بعد — بالاسم والرقم الوظيفي والمادة"],
 ];
 
 function agg(){                                    /* تجميعٌ واحد تُبنى عليه التقارير كلها */
@@ -1524,7 +1581,7 @@ function ph5(m){
   const c = el("div","card");
   const h = el("h3"); h.appendChild(el("span",null, meta[1])); c.appendChild(h);
   const p = el("div","pad"); p.id = "rptbody";
-  ({school:rSchool, teacher:rTeacher, spec:rSpec, ind:rInd, strat:rStrat, appr:rAppr, active:rActive})[RPT](p);
+  ({school:rSchool, teacher:rTeacher, spec:rSpec, ind:rInd, strat:rStrat, appr:rAppr, active:rActive, pending:rPending})[RPT](p);
   c.appendChild(p); m.appendChild(c);
 }
 
@@ -2161,7 +2218,18 @@ function gkey(cx, band, wk, day, spec){
   return [gctx().sector, cx, band.stage, band.per, wk, day, spec].join("|");
 }
 function findLesson(gk){ return DB.sched.find(x=>x.gk === gk); }
-function isMine(L){ return (L.teacher||"").trim() === (ME.name||"").trim(); }
+/* ⛔ خانةُ المعلم تُعرف بالرقم الوظيفي لا بالاسم: الأسماءُ تُكتب بصيغٍ شتّى،
+   فمن كُتب اسمُه في الخانة بصيغةٍ تخالف ما دخل به **لم يستطع تعديلَ خانته هو**،
+   ولم تظهر حصتُه في «جدولي» ولا في «تقريري». والاسمُ يبقى بديلاً لخانةٍ لا
+   رقمَ فيها — ولا يُطابَق بالاسم على خانةٍ رقمُها لغيره. (٣٠ سبتمبر ٢٠٢٦)
+   وهي القاعدةُ نفسُها في isMyVisit للزيارات المسنَدة. */
+function isMine(L){
+  const e = (ME.emp||"").trim(), n = (ME.name||"").trim(), le = (L.teacherNo||"").trim();
+  if(e && le) return le === e;
+  if(!n) return false;
+  if(le && e && le !== e) return false;
+  return (L.teacher||"").trim() === n;
+}
 /* المقيّمُ يكتب في الجدول كلِّه · والمعلمُ في مدارسه التي اختارها وفي خانته وحدها */
 function canEdit(c, band, L){
   if(L && L.approved) return false;          /* ⛔ معتمدةٌ فمقفولة — حتى للمقيّم */
@@ -2327,6 +2395,24 @@ function ph1(m){
     now.addEventListener("click", ()=>{ setctx("onlyw", currentWeek() || ""); shell(); });
     fb.appendChild(now);
     tp.appendChild(fb);
+  }
+  /* ⛔ العددُ حيث يعمل: الوكيلُ لا لوحةَ منظومةٍ له، فلو لم يُعرض هنا لم يعرف
+     من لم يُدخِل إلا أن يمسح الجدولَ بعينه — وهذا لا يُطمئن على كشفٍ كامل. */
+  if(c.tab === "fill" && (isSchoolBound() || isAdmin())){
+    const s = pendingEntry();
+    if(s && s.left.length){
+      const mb = el("div","msg bad");
+      mb.appendChild(el("b",null, arn(s.left.length) + " من " + arn(s.total)
+                                 + " بلا حصةٍ مسجَّلةٍ بعد"));
+      mb.appendChild(el("span",null, " — والجدولُ ناقصٌ حتى تُسجَّل. "));
+      const go = el("button","b ghost sm","افتح الكشف");
+      go.addEventListener("click", ()=>{ PH = 5; RPT = "pending"; shell(); });
+      mb.appendChild(go);
+      tp.appendChild(mb);
+    } else if(s){
+      tp.appendChild(el("div","msg ok",
+        "كشفُ المعلمين تامُّ الإدخال (" + arn(s.total) + ")."));
+    }
   }
   if(c.tab === "log") return logView(m, c);
   if(c.tab === "assign") return assignView(m, c);

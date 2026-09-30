@@ -110,6 +110,7 @@ view("m_reports", "principal", ph=5)
 
 view("w_school", "deputy", ph=1, tab="fill")
 view("w_assign", "deputy", ph=1, tab="assign")
+view("w_pending", "deputy", ph=5, rpt="pending", fakeroster=True)
 view("w_obs", "deputy", ph=3, cur=0)
 
 view("s_grid", "supervisor", ph=1, tab="fill")
@@ -146,6 +147,22 @@ window.__go = function(){
     try{ localStorage.removeItem(KEY + "_ctx"); }catch(e){}
     GS = null;
     if (V.tab) setctx("tab", V.tab);
+    if (V.rpt) RPT = V.rpt;      /* التقريرُ المطلوبُ بعينه لا أوّلُ تقرير */
+    /* ⛔ كشفٌ مستعارٌ للّقطة: التقريرُ يسمّي من لم يُدخِل، والدليلُ يُوزَّع
+       على الكشف نفسِه — فلا يُصوَّر فيه اسمُ معلمٍ حقيقي. */
+    if (V.fakeroster){
+      var FR = {}, i;
+      for (i = 1; i <= 9; i++)
+        FR["90000000" + i] = {n: "أ. نموذج " + ["الغامدي","القحطاني","الشهري","الزهراني",
+          "العمري","الحربي","المالكي","الدوسري","السبيعي"][i-1],
+          s: D.specs[(i-1) % D.specs.length], q: ""};
+      D.roster = FR;
+      var ks = Object.keys(FR);
+      DB.sched.forEach(function(L, k){
+        if (k < 3){ L.teacher = FR[ks[k]].n; L.teacherNo = ks[k]; }
+      });
+      save();
+    }
     if (V.cur != null && window.__DEMO && __DEMO[V.cur]) CUR = __DEMO[V.cur].id;
     PH = V.ph || 1;
     shell();
