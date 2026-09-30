@@ -366,7 +366,9 @@ function login(){
      يختار دوره — وإلا دخل منصةَ مدرسةٍ ليست له. (٢٩ سبتمبر ٢٠٢٦) */
   if(D.school){
     const sc = el("p","", D.school + (D.stagelabel ? " · " + D.stagelabel : ""));
-    sc.style.cssText = "font-weight:700;color:#355E91;margin-top:-6px";
+    /* ⛔ لا لونَ مثبَّتاً نصّاً: كان هنا نافي مدرسةٍ أخرى فيُكتب اسمُ قادةَ
+       بلونِ غيرِها. الهويةُ من متغيّرات الصفحة لا من رقمٍ في الشفرة. */
+    sc.style.cssText = "font-weight:700;color:var(--navy);margin-top:-6px";
     w.appendChild(sc);
   }
   w.appendChild(el("p","","اختر دورك — ولكل دورٍ ما يخصّه فقط"));
@@ -376,8 +378,12 @@ function login(){
   const scope = el("div","scope"); scope.style.display = "none";
   const selSector = el("select"), selComplex = el("select"),
         selSchool = el("select"), selSpec = el("select");
-  [["القطاع", selSector], ["المجمع التعليمي", selComplex],
-   ["مدرستك", selSchool], ["تخصصك", selSpec]].forEach(([t, e])=>{
+  /* ⛔ التسميةُ من البيانات لا من عبارةٍ ثابتة: مدرسةٌ واحدةٌ ليست «مجمعاً»،
+     وقائمةُ «مدرستك» تحمل مراحلَ لا مدارس — فتُسمَّى بما فيها. */
+  const LB_CX = D.lab_complex ? D.lab_complex : "المجمع التعليمي";
+  const LB_SCH = (D.complexlist || []).length > 1 ? "مدرستك" : "المرحلة";
+  [["القطاع", selSector], [LB_CX, selComplex],
+   [LB_SCH, selSchool], ["تخصصك", selSpec]].forEach(([t, e])=>{
     e.setAttribute("aria-label", t);
     const l = el("label","f"); l.appendChild(el("span",null,t)); l.appendChild(e);
     e.__lab = l; scope.appendChild(l);
@@ -398,13 +404,29 @@ function login(){
   selSector.addEventListener("change", fillComplex);
   selComplex.addEventListener("change", fillSchool);
 
+  /* ⛔ ثلاثُ قوائمَ كلُّ واحدةٍ بخيارٍ واحدٍ تُوهم الداخلَ أن عليه اختياراً،
+     وهو لا يملك غيرَه. فتُعرض نطاقُه سطراً واحداً يُقرأ، والقيمُ مضبوطةٌ
+     أصلاً من أوّلِ خيارٍ في كلِّ قائمة. (٢٩ سبتمبر ٢٠٢٦) */
+  const oneScope = (D.sectors || []).length === 1 && (D.complexlist || []).length === 1
+                 && selSchool.options.length === 1;
+  const fixed = el("div","f");
+  if(oneScope){
+    fixed.appendChild(el("span",null,"نطاقُك"));
+    const v = el("b",null, [selSector.value, selComplex.value, selSchool.value].join("  ·  "));
+    v.style.cssText = "color:var(--navy);font-weight:700";
+    fixed.appendChild(v);
+    scope.appendChild(fixed);
+  }
+
   const showScope = ()=>{
     const sc = picked ? picked.scope : "";
     scope.style.display = sc ? "" : "none";
+    if(oneScope) fixed.style.display = sc === "school" ? "" : "none";
     /* ⛔ المدير والوكيل: مدرسةٌ واحدةٌ تُثبَّت. والمشرفُ والزائرُ والمعلم: تخصص. */
-    selSector.__lab.style.display  = sc === "school" ? "" : "none";
-    selComplex.__lab.style.display = sc === "school" ? "" : "none";
-    selSchool.__lab.style.display  = sc === "school" ? "" : "none";
+    const shw = sc === "school" && !oneScope ? "" : "none";
+    selSector.__lab.style.display  = shw;
+    selComplex.__lab.style.display = shw;
+    selSchool.__lab.style.display  = shw;
     selSpec.__lab.style.display    = sc === "spec" ? "" : "none";
   };
   D.roles.forEach(r=>{
@@ -557,7 +579,34 @@ const PHASE_BY_ROLE = {
                   "اقرأ خريطة الزمن ومراحل الحصة وبطاقة الإستراتيجية.",
                   "ولا تُعدّل شيئاً هنا — التحضيرُ ملكُ صاحبه."]},
   },
+  /* ⛔ شريطُ المعلم الزائر أُعيد توظيفُه، ونصوصُ مراحله بقيت للمعلم والمقيّم:
+     كان يُقرأ له «يُمسكها المعلمُ في الحصة» و«ارصد الاستمارة مؤشراً مؤشراً»
+     و«اطبع تقرير الزيارة وأرسله للمعلم» — وهو لا يمسك الورقةَ ولا يرصد
+     استمارةً ولا يُصدر تقريراً. فلكلِّ مرحلةٍ نصُّه هو. (٢٩ سبتمبر ٢٠٢٦) */
+  3: {
+    peer: {t: "بطاقةُ الزيارة", s: "تُملأ أثناء الحصة أو بعدها مباشرةً",
+          why: "زيارتُك إفادةٌ لا درجة: لا تملأ استمارةَ المقيّمين ولا تُقيّم "
+             + "مؤشراتٍ، بل تكتب ما شاهدتَه وما أفادك وما ستطبّقه أنت. "
+             + "وما يُكتب بعد أيامٍ يذهب أكثرُه.",
+          steps: ["اقرأ تحضير زميلك أولاً — منه تعرف ما تنتبه له.",
+                  "املأ بطاقة الأقران أثناء الحصة أو بعدها مباشرةً.",
+                  "ولا درجةَ عليك: الدرجةُ للمشرفين وقيادة المدرسة."]},
+  },
+  4: {
+    peer: {t: "إجراؤك أنت", s: "ثمرةُ الزيارة — ما نقلتَه إلى حصتك",
+          why: "آخرُ خطوةٍ في زيارتك ليست حكماً على زميلك، بل التزامٌ تكتبه على "
+             + "نفسك: إجراءٌ واحدٌ محدَّدٌ تنقله إلى حصتك القادمة. وهو ما يُتابَع "
+             + "معك أنت.",
+          steps: ["اكتب إجراءً واحداً محدَّداً يمكن رؤيته في حصتك.",
+                  "وتظهر لك نتيجةُ الحصة إن رصدها المقيّمون — للاطّلاع لا للتعديل."]},
+  },
   6: {
+    peer: {t: "تحضيرُ زميلك", s: "اقرأه قبل أن تدخل الفصل",
+          why: "ورقةٌ مختصرةٌ فيها ما ينوي زميلك تنفيذَه: خريطةُ الزمن ومراحلُ "
+             + "الحصة وبطاقةُ الإستراتيجية. اقرأها قبل دخولك فتدخل وأنت تعرف "
+             + "ما سيفعله، لا تكتشفه معه.",
+          steps: ["افتح الزيارة المسنَدة إليك، ثم اقرأ الورقة كاملةً.",
+                  "اطبعها أو افتحها على جوالك لتكون بين يديك في الحصة."]},
     eval: {t: "ورقةُ التنفيذ", s: "خلاصةُ التحضير في صفحة — تُقرأ قبل الدخول",
           why: "ورقةٌ مختصرةٌ تجمع ما سيُنفَّذ: خريطةُ الزمن ومراحلُ الحصة وبطاقةُ "
              + "الإستراتيجية والمهمتان المكيَّفة والإثرائية. يُمسكها المعلمُ في الحصة، "
@@ -583,17 +632,10 @@ function navItems(){
   /* ⛔ شريطُ المعلم الزائر: أربعُ خطواتٍ بترتيب زيارته، تبدأ بما أُسنِد إليه،
      وبأسماءٍ تقول له ما يفعل لا ما اسمُ المرحلة — ولا مصفوفةَ جدولةٍ لا يجدولها.
      «حتى لا يضل ويتوه» (٢٩ سبتمبر ٢٠٢٦). */
-  if(ME.role === "peer"){
-    const T4 = {
-      6: ["اقرأ تحضير زميلك", "قبل أن تدخل الفصل"],
-      3: ["املأ بطاقة الزيارة", "أثناء الحصة وبعدها مباشرةً"],
-      4: ["النتيجة وإجراؤك", "ما نقلتَه لنفسك من الزيارة"],
-    };
-    return [mine5].concat([6,3,4].map(id=>{
-      const p = items.find(x=>x.id === id);
-      return p ? {id:id, t:T4[id][0], s:T4[id][1]} : null;
-    }).filter(Boolean));
-  }
+  /* ⛔ اسمُ المرحلة مصدرُه واحد: PHASE_BY_ROLE. كان هنا جدولُ أسماءٍ ثانٍ
+     فاختلف ما في الشريط عمّا في رأس الشاشة، والزائرُ يظنُّهما شاشتين. */
+  if(ME.role === "peer") return [mine5].concat(
+    [6, 3, 4].map(id=>items.find(x=>x.id === id)).filter(Boolean));
   /* ═════════ شريطُ المستشار ═════════
      ⛔ كان شريطُه شريطَ المعلم حرفياً: «الاستعداد والتحضير» و«تنفيذ الحصة»
         و«رصد الحصة» — وهو لا يحضّر ولا ينفّذ ولا يرصد، والنصوصُ تخاطبه
